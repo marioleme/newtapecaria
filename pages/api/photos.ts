@@ -2,46 +2,90 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { google } from "googleapis";
 
+// Fallback estático caso falhe OAuth/álbum
 const staticPhotos = [
   { url: "https://images.unsplash.com/photo-1582582621952-e0d4ba01f3a5?q=80&w=1600", alt: "Reforma de sofá – antes e depois" },
   { url: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?q=80&w=1600", alt: "Estofaria residencial – poltrona" },
   { url: "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?q=80&w=1600", alt: "Cadeiras restauradas" }
 ];
 
-function hasOAuthEnv() {
-  return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REFRESH_TOKEN);
+function hasEnv() {
+  return !!(
+    process.env.GOOGLE_CLIENT_ID &&
+    process.env.GOOGLE_CLIENT_SECRET &&
+    process.env.GOOGLE_REFRESH_TOKEN
+  );
 }
 
 async function getOAuthClient() {
-  const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN } = process.env;
-  const redirectUri = process.env.OAUTH_REDIRECT_PROD || process.env.OAUTH_REDIRECT_LOCAL || "http://localhost:3000/api/oauth2callback";
-  const oauth2Client = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, redirectUri);
-  oauth2Client.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
-  return oauth2Client;
+  const redirectUri =
+    process.env.OAUTH_REDIRECT_PROD ||
+    process.env.OAUTH_REDIRECT_LOCAL ||
+    "http://localhost:3000/api/oauth2callback";
+
+  const client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri
+  );
+  client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+  return client;
 }
 
-// 🔧 Tipagem leve para evitar "implicit any"
-type AlbumsListResp = { albums?: Array<{ id: string; title?: string }>; nextPageToken?: string };
-type SharedAlbumsListResp = { sharedAlbums?: Array<{ id: string; title?: string }>; nextPageToken?: string };
-type MediaItemsSearchResp = { mediaItems?: Array<any>; nextPageToken?: string };
+// -------- Helpers REST (sem o client photoslibrary) --------
+async function gfetch(path: string, client: any, body?: any): Promise<any> {
+  // Next.js (Node 18+) já tem fetch global
+  const base = "https://photoslibrary.googleapis.com/v1/";
+  const headers = await client.getRequestHeaders(); // inclui Authorization: Bearer ...
+  const res = await fetch(base + path, {
+    method: body ? "POST" : "GET",
+    headers: body
+      ? { ...headers, "Content-Type": "application/json" }
+      : headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Photos API ${res.status}: ${txt}`);
+  }
+  return res.json();
+}
 
-async function findAlbumId(photos: any, title: string) {
-  // 1) procurar na biblioteca
+async function listAlbums(client: any, pageSize = 50, pageToken?: string) {
+  const qs = new URLSearchParams({ pageSize: String(pageSize) });
+  if (pageToken) qs.set("pageToken", pageToken);
+  return gfetch(`albums?${qs.toString()}`, client);
+}
+
+async function listSharedAlbums(client: any, pageSize = 50, pageToken?: string) {
+  const qs = new URLSearchParams({ pageSize: String(pageSize) });
+  if (pageToken) qs.set("pageToken", pageToken);
+  return gfetch(`sharedAlbums?${qs.toString()}`, client);
+}
+
+async function searchByAlbumId(client: any, albumId: string, pageSize = 50, pageToken?: string) {
+  return gfetch("mediaItems:search", client, {
+    albumId,
+    pageSize,
+    pageToken,
+  });
+}
+
+async function findAlbumId(client: any, title: string) {
+  // 1) Biblioteca
   let pageToken: string | undefined;
   for (let i = 0; i < 10; i++) {
-    const resp = await photos.albums.list({ pageSize: 50, pageToken });
-    const data = resp.data as AlbumsListResp;                 // 👈 evita implicit any
-    const found = (data.albums ?? []).find((a) => a.title === title);
+    const data = await listAlbums(client, 50, pageToken);
+    const found = (data.albums ?? []).find((a: any) => a.title === title);
     if (found) return { id: found.id, shared: false };
     pageToken = data.nextPageToken || undefined;
     if (!pageToken) break;
   }
-  // 2) procurar em compartilhados
+  // 2) Compartilhados
   pageToken = undefined;
   for (let i = 0; i < 10; i++) {
-    const resp = await photos.sharedAlbums.list({ pageSize: 50, pageToken });
-    const data = resp.data as SharedAlbumsListResp;           // 👈 evita implicit any
-    const found = (data.sharedAlbums ?? []).find((a) => a.title === title);
+    const data = await listSharedAlbums(client, 50, pageToken);
+    const found = (data.sharedAlbums ?? []).find((a: any) => a.title === title);
     if (found) return { id: found.id, shared: true };
     pageToken = data.nextPageToken || undefined;
     if (!pageToken) break;
@@ -54,30 +98,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const debug = req.query.debug === "1";
 
   try {
-    const albumTitle = process.env.GOOGLE_PHOTOS_ALBUM_TITLE || "";
-    if (!hasOAuthEnv() || !albumTitle) {
-      if (debug) return res.status(200).json({ reason: "missing_env_or_title", albumTitle, staticPhotos });
+    const title = process.env.GOOGLE_PHOTOS_ALBUM_TITLE || "";
+    if (!hasEnv() || !title) {
+      if (debug) return res.status(200).json({ reason: "missing_env_or_title", title, staticPhotos });
       return res.status(200).json(staticPhotos);
     }
 
-    const oauth2Client = await getOAuthClient();
-    const photos = google.photoslibrary({ version: "v1", auth: oauth2Client });
+    const client = await getOAuthClient();
 
-    const found = await findAlbumId(photos, albumTitle);
+    const found = await findAlbumId(client, title);
     if (!found) {
-      if (debug) return res.status(200).json({ reason: "album_not_found", triedTitle: albumTitle, hint: "Adicione o álbum à biblioteca ou use sharedAlbums", staticPhotos });
+      if (debug) return res.status(200).json({ reason: "album_not_found", triedTitle: title, staticPhotos });
       return res.status(200).json(staticPhotos);
     }
 
     const items: any[] = [];
     let pageToken: string | undefined;
     while (items.length < limit) {
-      const resp = await photos.mediaItems.search({
-        // @ts-expect-error: requestBody não é corretamente inferido no pacote, fazemos cast leve
-        requestBody: { albumId: found.id, pageSize: Math.min(50, limit - items.length), pageToken },
-      });
-      const data = resp.data as MediaItemsSearchResp;         // 👈 evita implicit any
-      (data.mediaItems ?? []).forEach((m) => items.push(m));
+      const data = await searchByAlbumId(client, found.id, Math.min(50, limit - items.length), pageToken);
+      (data.mediaItems ?? []).forEach((m: any) => items.push(m));
       pageToken = data.nextPageToken || undefined;
       if (!pageToken) break;
     }
