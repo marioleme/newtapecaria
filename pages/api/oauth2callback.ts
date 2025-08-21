@@ -1,4 +1,4 @@
-// pages/api/oauth2callback.ts
+// pages/api/google-oauth-url.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -8,7 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const redirectUri = process.env.OAUTH_REDIRECT_LOCAL || "http://localhost:3000/api/oauth2callback";
+    const redirectUri = process.env.OAUTH_REDIRECT_LOCAL || "http://localhost:3000/api/google-oauth-url";
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },

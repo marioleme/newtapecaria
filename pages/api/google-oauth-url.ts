@@ -8,7 +8,7 @@ const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   // Garanta que suas variáveis de ambiente (.env.local) estão configuradas
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.OAUTH_REDIRECT_URI || "http://localhost:3000/api/oauth2callback";
+  const redirectUri = process.env.OAUTH_REDIRECT_URI || "http://localhost:3000/api/google-oauth-url";
 
   if (!clientId) {
     res.status(500).json({ error: "Google Client ID não está configurado no servidor." });

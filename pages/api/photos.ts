@@ -21,7 +21,7 @@ async function getOAuthClient() {
   const redirectUri =
     process.env.OAUTH_REDIRECT_PROD ||
     process.env.OAUTH_REDIRECT_LOCAL ||
-    "http://localhost:3000/api/oauth2callback";
+    "http://localhost:3000/api/google-oauth-url";
 
   const client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,

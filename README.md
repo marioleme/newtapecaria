@@ -6,7 +6,7 @@ npm install
 npm run dev
 ```
 1) Crie **.env.local** a partir de **.env.local.example**.  
-2) Abra `http://localhost:3000/api/google-oauth-url`, clique na URL, autorize e copie o `refresh_token` mostrado em `/api/oauth2callback`.  
+2) Abra `http://localhost:3000/api/google-oauth-url`, clique na URL, autorize e copie o `refresh_token` mostrado em `/api/google-oauth-url`.  
 3) Cole o token no `.env.local` e reinicie `npm run dev`.
 
 ## Testes
