@@ -4,7 +4,7 @@ import { google } from "googleapis";
 
 // Fallback estático caso falhe OAuth/álbum
 const staticPhotos = [
-  { url: "https://images.unsplash.com/photo-1582582621952-e0d4ba01f3a5?q=80&w=1600", alt: "Reforma de sofá – antes e depois" },
+  { url: "images/banner-tapecaria-jose-antonio.jpg", alt: "Reforma de sofá – antes e depois" },
   { url: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?q=80&w=1600", alt: "Estofaria residencial – poltrona" },
   { url: "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?q=80&w=1600", alt: "Cadeiras restauradas" }
 ];

@@ -8,8 +8,9 @@ import React, { useEffect, useMemo, useState } from "react";
 const COMPANY = {
   name: "Tapeçaria José Antonio",
   slogan: "Estofaria e reforma com acabamento de primeira.",
-  phoneDisplay: "(11) 99999-9999",
-  phoneE164: "5511999999999",
+  phoneDisplay: "(11) 9978-7237",
+  phoneE164: "551199787237",
+  emailDisplay: "contato@tapecariajoseantonio.com.br",
   email: "contato@tapecariajoseantonio.com.br",
   site: "https://www.tapecariajoseantonio.com.br/",
 };
@@ -22,10 +23,10 @@ const SOCIAL = {
 };
 
 const ADDRESS = {
-  line1: "Rua Exemplo, 123",
+  line1: "  Av. Lacerda Franco, 1995",
   city: "São Paulo",
   state: "SP",
-  zip: "00000-000",
+  zip: "01536-001",
   mapsIframe:
     "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3656.7!2d-46.65!3d-23.58!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2sTapeçaria%20José%20Antonio!5e0!3m2!1spt-BR!2sBR!4v1690000000000",
 };
@@ -47,6 +48,7 @@ const SERVICES = [
   { title: "Poltronas e Cadeiras", desc: "Restauração, retrabalho em costura e revestimento sob medida.", icon: "🪑" },
   { title: "Cabeceiras e Painéis", desc: "Projetos sob medida para quartos e salas, com botone e capitonê.", icon: "🧵" },
   { title: "Comercial e Corporativo", desc: "Bancos fixos (booths), estofados para restaurantes, clínicas e escritórios.", icon: "🏢" },
+  { title: "Acabamentos Detalhados", desc: "Especialistas em botonê e capitonê, aplicamos detalhes com precisão em cabeceiras, painéis e poltronas.", icon: "💎" },
   { title: "Retirada & Entrega", desc: "Logística prática na cidade e região. Consulte cobertura.", icon: "📦" },
 ];
 
@@ -111,7 +113,7 @@ function Header() {
 function useClientGallery() {
   const [photos, setPhotos] = useState<{url:string, alt:string}[] | null>(null);
   const fallback = [
-    { url: "https://images.unsplash.com/photo-1582582621952-e0d4ba01f3a5?q=80&w=1600", alt: "Reforma de sofá – antes e depois" },
+    { url: "images/banner-tapecaria-jose-antonio.jpg", alt: "Reforma de sofá – antes e depois" },
     { url: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?q=80&w=1600", alt: "Estofaria residencial – poltrona" },
     { url: "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?q=80&w=1600", alt: "Cadeiras restauradas" },
   ];
@@ -192,11 +194,7 @@ function Services() {
           </div>
         ))}
       </div>
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="mt-8 p-4 rounded-2xl border bg-yellow-50 text-yellow-800">
-          <p className="text-sm"><strong>Aviso:</strong> não realizamos serviços automotivos.</p>
-        </div>
-      </div>
+  
     </section>
   );
 }
