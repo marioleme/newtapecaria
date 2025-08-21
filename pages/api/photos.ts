@@ -20,12 +20,18 @@ async function getOAuthClient() {
   return oauth2Client;
 }
 
+// 🔧 Tipagem leve para evitar "implicit any"
+type AlbumsListResp = { albums?: Array<{ id: string; title?: string }>; nextPageToken?: string };
+type SharedAlbumsListResp = { sharedAlbums?: Array<{ id: string; title?: string }>; nextPageToken?: string };
+type MediaItemsSearchResp = { mediaItems?: Array<any>; nextPageToken?: string };
+
 async function findAlbumId(photos: any, title: string) {
   // 1) procurar na biblioteca
   let pageToken: string | undefined;
   for (let i = 0; i < 10; i++) {
-    const { data } = await photos.albums.list({ pageSize: 50, pageToken });
-    const found = (data.albums ?? []).find((a: any) => a.title === title);
+    const resp = await photos.albums.list({ pageSize: 50, pageToken });
+    const data = resp.data as AlbumsListResp;                 // 👈 evita implicit any
+    const found = (data.albums ?? []).find((a) => a.title === title);
     if (found) return { id: found.id, shared: false };
     pageToken = data.nextPageToken || undefined;
     if (!pageToken) break;
@@ -33,8 +39,9 @@ async function findAlbumId(photos: any, title: string) {
   // 2) procurar em compartilhados
   pageToken = undefined;
   for (let i = 0; i < 10; i++) {
-    const { data } = await photos.sharedAlbums.list({ pageSize: 50, pageToken });
-    const found = (data.sharedAlbums ?? []).find((a: any) => a.title === title);
+    const resp = await photos.sharedAlbums.list({ pageSize: 50, pageToken });
+    const data = resp.data as SharedAlbumsListResp;           // 👈 evita implicit any
+    const found = (data.sharedAlbums ?? []).find((a) => a.title === title);
     if (found) return { id: found.id, shared: true };
     pageToken = data.nextPageToken || undefined;
     if (!pageToken) break;
@@ -58,17 +65,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const found = await findAlbumId(photos, albumTitle);
     if (!found) {
-      if (debug) return res.status(200).json({ reason: "album_not_found", triedTitle: albumTitle, hint: "Adicione o álbum à biblioteca ou mantenha sharedAlbums ativado", staticPhotos });
+      if (debug) return res.status(200).json({ reason: "album_not_found", triedTitle: albumTitle, hint: "Adicione o álbum à biblioteca ou use sharedAlbums", staticPhotos });
       return res.status(200).json(staticPhotos);
     }
 
     const items: any[] = [];
     let pageToken: string | undefined;
     while (items.length < limit) {
-      const { data } = await photos.mediaItems.search({
+      const resp = await photos.mediaItems.search({
+        // @ts-expect-error: requestBody não é corretamente inferido no pacote, fazemos cast leve
         requestBody: { albumId: found.id, pageSize: Math.min(50, limit - items.length), pageToken },
       });
-      (data.mediaItems ?? []).forEach((m: any) => items.push(m));
+      const data = resp.data as MediaItemsSearchResp;         // 👈 evita implicit any
+      (data.mediaItems ?? []).forEach((m) => items.push(m));
       pageToken = data.nextPageToken || undefined;
       if (!pageToken) break;
     }
@@ -76,9 +85,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const result = items.slice(0, limit).map((m: any) => ({
       url: `${m.baseUrl}=w1600`,
       alt: m.filename || m.description || "Foto",
-      width: m.mediaMetadata?.width,
-      height: m.mediaMetadata?.height,
-      mimeType: m.mimeType,
     }));
 
     if (debug) return res.status(200).json({ ok: true, shared: found.shared, count: result.length, sample: result.slice(0, 2) });
