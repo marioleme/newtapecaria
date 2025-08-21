@@ -1,4 +1,4 @@
-// pages/api/google-oauth-url.ts
+// pages/api/oauth2callback.ts - VERSÃO CORRIGIDA
 import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -8,7 +8,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const redirectUri = process.env.OAUTH_REDIRECT_LOCAL || "http://localhost:3000/api/google-oauth-url";
+    // LINHA CORRIGIDA AQUI
+    const redirectUri = process.env.OAUTH_REDIRECT_LOCAL || "http://localhost:3000/api/oauth2callback";
+
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -16,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         code,
         client_id: process.env.GOOGLE_CLIENT_ID!,
         client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-        redirect_uri: redirectUri,
+        redirect_uri: redirectUri, // Agora está correto
         grant_type: "authorization_code",
       }),
     });
@@ -26,11 +28,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!refresh_token) {
       return res
         .status(200)
-        .send("Login OK, mas não veio refresh_token. Tente novamente com prompt=consent e access_type=offline.");
+        .send("Login OK, mas não veio refresh_token. Tente revogar o acesso no Google e gerar de novo.");
     }
 
     res.status(200).json({
-      message: "Copie o refresh_token e adicione ao .env.local e no Vercel",
+      message: "SUCESSO! Copie este refresh_token para o .env.local e Vercel",
       refresh_token,
       access_token_preview: access_token ? access_token.slice(0, 10) + "..." : null,
     });

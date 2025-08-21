@@ -1,126 +1,101 @@
-// pages/api/photos.ts
+// pages/api/photos.ts - VERSÃO FINAL E ROBUSTA
 import type { NextApiRequest, NextApiResponse } from "next";
 import { google } from "googleapis";
 
 const staticPhotos = [
   { url: "/images/banner-tapecaria-jose-antonio.jpg", alt: "Reforma de sofá – antes e depois" },
-  { url: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?q=80&w=1600", alt: "Estofaria residencial – poltrona" },
-  { url: "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?q=80&w=1600", alt: "Cadeiras restauradas" },
 ];
 
-function hasEnv() {
-  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REFRESH_TOKEN);
-}
-function getRedirectUri() {
-  return process.env.OAUTH_REDIRECT_PROD || process.env.OAUTH_REDIRECT_LOCAL || "http://localhost:3000/api/oauth2callback";
-}
-async function getOAuthClient() {
-  const client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, getRedirectUri());
-  client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
-  return client;
-}
+async function getPhotosFromGoogle(req: NextApiRequest) {
+   // ADICIONE ESTA LINHA PARA VERIFICAR O TOKEN EM USO
+  console.log("### VERIFICANDO TOKEN USADO PELO SERVIDOR ### ->", process.env.GOOGLE_REFRESH_TOKEN);
 
-// --- REST helpers ---
-async function gfetch(path: string, client: any, body?: unknown) {
-  const base = "https://photoslibrary.googleapis.com/v1/";
-  const headers = await client.getRequestHeaders();
-  const res = await fetch(base + path, {
-    method: body ? "POST" : "GET",
-    headers: body ? { ...headers, "Content-Type": "application/json" } : headers,
-    body: body ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Photos API ${res.status}: ${await res.text()}`);
-  return res.json();
-}
-async function listAlbums(client: any, pageSize = 50, pageToken?: string) {
-  const qs = new URLSearchParams({ pageSize: String(pageSize) });
-  if (pageToken) qs.set("pageToken", pageToken);
-  return gfetch(`albums?${qs.toString()}`, client);
-}
-async function listSharedAlbums(client: any, pageSize = 50, pageToken?: string) {
-  const qs = new URLSearchParams({ pageSize: String(pageSize) });
-  if (pageToken) qs.set("pageToken", pageToken);
-  return gfetch(`sharedAlbums?${qs.toString()}`, client);
-}
-async function searchByAlbumId(client: any, albumId: string, pageSize = 50, pageToken?: string) {
-  return gfetch("mediaItems:search", client, { albumId, pageSize, pageToken });
-}
-async function findAlbumIdByTitle(client: any, title: string) {
-  // biblioteca
-  let pageToken: string | undefined;
-  for (let i = 0; i < 10; i++) {
-    const data: any = await listAlbums(client, 50, pageToken);
-    const found = (data.albums ?? []).find((a: any) => a.title === title);
-    if (found) return { id: found.id, shared: false };
-    pageToken = data.nextPageToken || undefined;
-    if (!pageToken) break;
+  const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN, GOOGLE_PHOTOS_ALBUM_TITLE } = process.env;
+
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REFRESH_TOKEN || !GOOGLE_PHOTOS_ALBUM_TITLE) {
+    throw new Error("Variáveis de ambiente faltando");
   }
-  // compartilhados
-  pageToken = undefined;
-  for (let i = 0; i < 10; i++) {
-    const data: any = await listSharedAlbums(client, 50, pageToken);
-    const found = (data.sharedAlbums ?? []).find((a: any) => a.title === title);
-    if (found) return { id: found.id, shared: true };
-    pageToken = data.nextPageToken || undefined;
-    if (!pageToken) break;
+
+  // 1. Cria o cliente OAuth2 e obtém um access_token válido
+  const auth = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
+  auth.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
+  const { token: accessToken } = await auth.getAccessToken();
+  if (!accessToken) {
+    throw new Error("Falha ao obter access token com o refresh token.");
   }
-  return null;
+
+  // 2. Função auxiliar para fazer chamadas à API com o token
+  async function fetchFromPhotosAPI(path: string, body?: object) {
+    const url = `https://photoslibrary.googleapis.com/v1/${path}`;
+    const res = await fetch(url, {
+      method: body ? 'POST' : 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Erro na API do Google Fotos (${res.status}): ${errorText}`);
+    }
+    return res.json();
+  }
+
+  // 3. Procura pelo álbum
+  let albumId = "";
+  let source = "not_found";
+
+  const albumsResponse: any = await fetchFromPhotosAPI("albums?pageSize=50");
+  const foundAlbum = albumsResponse.albums?.find((a: any) => a.title === GOOGLE_PHOTOS_ALBUM_TITLE);
+
+  if (foundAlbum) {
+    albumId = foundAlbum.id;
+    source = "biblioteca";
+  } else {
+    const sharedAlbumsResponse: any = await fetchFromPhotosAPI("sharedAlbums?pageSize=50");
+    const foundSharedAlbum = sharedAlbumsResponse.sharedAlbums?.find((a: any) => a.title === GOOGLE_PHOTOS_ALBUM_TITLE);
+    if (foundSharedAlbum) {
+      albumId = foundSharedAlbum.id;
+      source = "compartilhado";
+    }
+  }
+
+  if (!albumId) {
+    throw new Error(`Álbum com o título "${GOOGLE_PHOTOS_ALBUM_TITLE}" não foi encontrado.`);
+  }
+
+  // 4. Busca as fotos do álbum
+  const limit = Math.max(1, Math.min(50, Number(req.query.limit ?? 12)));
+  const searchResponse: any = await fetchFromPhotosAPI("mediaItems:search", { albumId, pageSize: limit });
+  
+  const result = (searchResponse.mediaItems || [])
+    .filter((m: any) => m.mediaMetadata?.photo)
+    .map((m: any) => ({
+      url: `${m.baseUrl}=w1600`,
+      alt: m.filename || m.description || "Foto do álbum",
+    }));
+
+  if (req.query.debug === "1") {
+    return { ok: true, source, albumId, count: result.length, sample: result.slice(0, 2) };
+  }
+
+  return result;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const limit = Math.max(1, Math.min(50, Number(req.query.limit ?? 12)));
-  const debug = req.query.debug === "1";
-
   try {
-    if (!hasEnv()) {
-      if (debug) return res.status(200).json({ reason: "missing_env", staticPhotos });
-      return res.status(200).json(staticPhotos);
+    const photos = await getPhotosFromGoogle(req);
+    if (req.query.debug === "1") {
+      return res.status(200).json(photos);
     }
-
-    const client = await getOAuthClient();
-
-    // 🆕 Prioriza albumId por ENV; se não houver, usa o título
-    const albumIdEnv = process.env.GOOGLE_PHOTOS_ALBUM_ID || "";
-    let albumId = albumIdEnv.trim();
-    let source: "env_id" | "title_biblioteca" | "title_compartilhado" | "none" = "none";
-
-    if (!albumId) {
-      const title = (process.env.GOOGLE_PHOTOS_ALBUM_TITLE || "").trim();
-      if (!title) {
-        if (debug) return res.status(200).json({ reason: "missing_title_or_id", staticPhotos });
-        return res.status(200).json(staticPhotos);
-      }
-      const found = await findAlbumIdByTitle(client, title);
-      if (!found) {
-        if (debug) return res.status(200).json({ reason: "album_not_found", triedTitle: title, staticPhotos });
-        return res.status(200).json(staticPhotos);
-      }
-      albumId = found.id;
-      source = found.shared ? "title_compartilhado" : "title_biblioteca";
-    } else {
-      source = "env_id";
-    }
-
-    const items: any[] = [];
-    let pageToken: string | undefined;
-    while (items.length < limit) {
-      const data: any = await searchByAlbumId(client, albumId, Math.min(50, limit - items.length), pageToken);
-      (data.mediaItems ?? []).forEach((m: any) => items.push(m));
-      pageToken = data.nextPageToken || undefined;
-      if (!pageToken) break;
-    }
-
-    const result = items.slice(0, limit).map((m: any) => ({
-      url: `${m.baseUrl}=w1600`,
-      alt: m.filename || m.description || "Foto",
-    }));
-
-    if (debug) return res.status(200).json({ ok: true, source, albumId, count: result.length, sample: result.slice(0, 2) });
     res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=300");
-    return res.status(200).json(result.length ? result : staticPhotos);
+    return res.status(200).json(photos.length ? photos : staticPhotos);
   } catch (e: any) {
-    if (debug) return res.status(200).json({ reason: "exception", message: e?.message, staticFallback: true });
+    console.error("ERRO FINAL EM /api/photos:", e.message);
+    if (req.query.debug === "1") {
+      return res.status(500).json({ reason: "exception", message: e.message, staticFallback: true });
+    }
     return res.status(200).json(staticPhotos);
   }
 }
