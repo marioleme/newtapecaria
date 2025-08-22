@@ -2,12 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 
 /**
  * App principal – Tapeçaria José Antonio (sem automotivo)
- * Galeria consome /api/photos (OAuth Google Photos com shared + debug; fallback estático).
+ * Galeria agora usa imagens locais da pasta /public/images.
  */
 
 const COMPANY = {
   name: "Tapeçaria José Antonio",
-  slogan: "Estofaria e reforma com acabamento de primeira.",
+  slogan: "Reforma de sofás e estofados com acabamento de primeira.",
   phoneDisplay: "(11) 9978-7237",
   phoneE164: "551199787237",
   emailDisplay: "contato@tapecariajoseantonio.com.br",
@@ -18,8 +18,7 @@ const COMPANY = {
 const SOCIAL = {
   instagram: "https://www.instagram.com/estofariajoseantonio",
   facebook: "https://www.facebook.com/profile.php?id=100063638346643",
-  googlePhotosAlbum:
-    "https://photos.google.com/share/AF1QipM6GdjEInGzMSd8tsp_3Md1HtYK-0haxgveakG5b1EDWjy1fBRBiiP0p8HlBfsmjQ?key=d3NVWHhPa3BDcUpMVExqRjNzcDdnR3RMNHdmWVZB",
+  fullGalleryLink: "https://www.instagram.com/estofariajoseantonio",
 };
 
 const ADDRESS = {
@@ -28,7 +27,7 @@ const ADDRESS = {
   state: "SP",
   zip: "01536-001",
   mapsIframe:
-    "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3656.7!2d-46.65!3d-23.58!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2sTapeçaria%20José%20Antonio!5e0!3m2!1spt-BR!2sBR!4v1690000000000",
+    "https://www.google.com/maps/embed?pb=!4v1755821772201!6m8!1m7!1sbsWalTytMKvq_tcD6KNlDg!2m2!1d-23.58024439454404!2d-46.62589280714862!3f117.14023!4f0!5f0.7820865974627469",
 };
 
 const BUSINESS_HOURS = [
@@ -41,15 +40,35 @@ const BUSINESS_HOURS = [
   { d: "Dom", h: "Fechado" },
 ];
 
-const PHOTOS_API_ENDPOINT = "/api/photos";
+const LOCAL_GALLERY = [
+    { url: "/images/banner-tapecaria-jose-antonio.jpg", alt: "Fachada da Tapeçaria José Antonio, especialista em estofados" },
+    { url: "/images/IMG-20241109-WA0063.jpg", alt: "Antes e depois: sofá bege de dois lugares totalmente reformado" },
+    { url: "/images/IMG-20241129-WA0030.jpg", alt: "Antes e depois de um sofá-cama com estofado rosa" },
+    { url: "/images/IMG-20241205-WA0032.jpg", alt: "Reforma de poltrona giratória: de estampada para um elegante tecido cinza" },
+    { url: "/images/IMG-20250204-WA0036.jpg", alt: "Cadeira de jantar com tecido renovado, de floral antigo para moderno" },
+    { url: "/images/upload_-1(6).jpg", alt: "Sofá retrátil de couro preto reformado em sala de estar" },
+    { url: "/images/upload_-1(8).jpg", alt: "Detalhe de um sofá de couro preto com o revestimento descascado antes da reforma" },
+    { url: "/images/p_0137.jpg", alt: "Poltrona chesterfield em couro marrom com assento vermelho, recém-reformada" },
+    { url: "/images/upload_-1(2).jpg", alt: "Sofá com capa de tecido floral em uma sala de estar elegante" },
+    { url: "/images/p_0150.jpg", alt: "Sofá de três lugares em tecido terracota com detalhes em capitonê" },
+    { url: "/images/20140423_121708.jpg", alt: "Par de poltronas com tecido listrado em tons de cinza e branco" },
+    { url: "/images/20140224_171105.jpg", alt: "Duas poltronas de recepção em couro vermelho vivo" },
+    { url: "/images/upload_-1(7).jpg", alt: "Cadeiras de jantar modernas com estofado de couro marrom prontas" },
+    { url: "/images/20140930_122344.jpg", alt: "Cabeceira de cama estofada em tecido claro, feita sob medida" },
+    { url: "/images/Foto0186.jpg", alt: "Pufe redondo grande com estofado em couro dourado e detalhes em capitonê" },
+    { url: "/images/Foto0252.jpg", alt: "Estrutura de cadeira antiga sendo preparada para receber novo estofado" },
+    { url: "/images/20140920_120639.jpg", alt: "Sofá de canto (chaise) em tecido suede bege claro, antes da reforma" },
+    { url: "/images/upload_-1(3).jpg", alt: "Namoradeira antiga com estrutura de madeira escura e estofado branco novo" },
+    { url: "/images/20140606_113956.jpg", alt: "Cadeiras de design com tiras de tecido amarelo" },
+];
 
 const SERVICES = [
-  { title: "Reforma de Sofás", desc: "Troca de espuma, molas, cintas e tecido. Acabamento premium.", icon: "🛋️" },
-  { title: "Poltronas e Cadeiras", desc: "Restauração, retrabalho em costura e revestimento sob medida.", icon: "🪑" },
-  { title: "Cabeceiras e Painéis", desc: "Projetos sob medida para quartos e salas, com botone e capitonê.", icon: "🧵" },
-  { title: "Comercial e Corporativo", desc: "Bancos fixos (booths), estofados para restaurantes, clínicas e escritórios.", icon: "🏢" },
-  { title: "Acabamentos Detalhados", desc: "Especialistas em botonê e capitonê, aplicamos detalhes com precisão em cabeceiras, painéis e poltronas.", icon: "💎" },
-  { title: "Retirada & Entrega", desc: "Logística prática na cidade e região. Consulte cobertura.", icon: "📦" },
+  { title: "Reforma de Sofás", desc: "Deixe seu sofá antigo como novo! Trocamos espumas, molas e tecidos para restaurar o conforto e a beleza da sua peça.", icon: "🛋️" },
+  { title: "Poltronas e Cadeiras", desc: "Renove suas poltronas e cadeiras favoritas. Cuidamos da restauração completa, com costuras reforçadas e revestimentos que combinam com seu estilo.", icon: "🪑" },
+  { title: "Cabeceiras e Painéis", desc: "Crie um ambiente único. Projetamos e fabricamos cabeceiras e painéis sob medida, com acabamentos em botonê e capitonê.", icon: "🧵" },
+  { title: "Estofados Comerciais", desc: "Atendemos seu negócio com bancos fixos (booths), estofados para restaurantes, clínicas e escritórios, unindo durabilidade e design.", icon: "🏢" },
+  { title: "Acabamentos Detalhados", desc: "A perfeição está nos detalhes. Somos especialistas em botonê e capitonê para um acabamento de luxo em suas peças.", icon: "💎" },
+  { title: "Retirada & Entrega", desc: "Oferecemos logística prática para retirar e entregar seu estofado em São Paulo e região. Consulte a cobertura.", icon: "📦" },
 ];
 
 function classNames(...c: (string | false | null | undefined)[]) {
@@ -110,56 +129,21 @@ function Header() {
   );
 }
 
-function useClientGallery() {
-  const [photos, setPhotos] = useState<{url:string, alt:string}[] | null>(null);
-  const fallback = [
-    { url: "images/banner-tapecaria-jose-antonio.jpg", alt: "Reforma de sofá – antes e depois" },
-    { url: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?q=80&w=1600", alt: "Estofaria residencial – poltrona" },
-    { url: "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?q=80&w=1600", alt: "Cadeiras restauradas" },
-  ];
-  useEffect(() => {
-    let aborted = false;
-    (async () => {
-      try {
-        const res = await fetch(`${PHOTOS_API_ENDPOINT}?limit=12`, { headers: { Accept: "application/json" } });
-        const data = await res.json();
-        if (!aborted) {
-          if (Array.isArray(data) && data.length > 0) {
-            setPhotos(data);
-          } else {
-            // ⚠️ Se vier [] ou formato não esperado, usa fallback
-            setPhotos(fallback);
-          }
-        }
-      } catch (e) {
-        console.warn("API photos falhou; usando fallback.", e);
-        if (!aborted) setPhotos(fallback);
-      }
-    })();
-    return () => { aborted = true; };
-  }, []);
-  // Enquanto carrega, retorna fallback para não deixar UI vazia
-  return photos ?? fallback;
-}
-
 function Hero() {
-  const GALLERY = useClientGallery();
   return (
     <section id="home" className="pt-24">
       <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8 items-center px-4">
         <div>
           <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight">{COMPANY.slogan}</h1>
           <p className="mt-4 text-lg text-gray-600">
-            Tapeçaria e estofaria residencial. Reformamos sofás, poltronas e cadeiras,
-            projetos sob medida – sem e-commerce: atendimento personalizado e orçamento
-            rápido pelo WhatsApp.
+            Somos especialistas em estofaria residencial e comercial. Reformamos seu sofá, poltrona ou cadeira com atendimento personalizado e orçamento rápido pelo WhatsApp.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <a href="#servicos" className="px-5 py-3 rounded-2xl bg-black text-white font-semibold shadow hover:shadow-md">Ver serviços</a>
+            <a href="#servicos" className="px-5 py-3 rounded-2xl bg-black text-white font-semibold shadow hover:shadow-md">Conheça os Serviços</a>
             <a
               href={`https://wa.me/${COMPANY.phoneE164}?text=${encodeURIComponent("Olá! Vim pelo site e gostaria de um orçamento com retirada/entrega.")}`}
               target="_blank" rel="noreferrer" className="px-5 py-3 rounded-2xl border font-semibold"
-            >Pedir orçamento</a>
+            >Orçamento Rápido no WhatsApp</a>
           </div>
           <div className="mt-6 flex items-center gap-4 text-sm text-gray-600">
             <a className="underline" href={SOCIAL.instagram} target="_blank" rel="noreferrer">Instagram</a>
@@ -169,7 +153,7 @@ function Hero() {
         </div>
         <div className="relative group">
           <div className="aspect-[4/3] w-full rounded-3xl overflow-hidden shadow-xl ring-1 ring-black/5">
-            <img src={GALLERY[0]?.url} alt={GALLERY[0]?.alt} className="h-full w-full object-cover group-hover:scale-105 transition" loading="lazy" />
+            <img src={LOCAL_GALLERY[0]?.url} alt={LOCAL_GALLERY[0]?.alt} className="h-full w-full object-cover group-hover:scale-105 transition" loading="lazy" />
           </div>
           <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow p-4 border">
             <p className="text-sm font-semibold">Atendimento rápido</p>
@@ -184,7 +168,7 @@ function Hero() {
 function Services() {
   return (
     <section id="servicos" className="py-16">
-      <SectionTitle kicker="O que fazemos" title="Serviços de tapeçaria e estofaria" subtitle="Qualidade de fábrica com toque artesanal." />
+      <SectionTitle kicker="O que fazemos" title="Serviços de Tapeçaria e Estofaria" subtitle="Qualidade de fábrica com o cuidado artesanal que sua peça merece." />
       <div className="max-w-6xl mx-auto px-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {SERVICES.map(s => (
           <div key={s.title} className="border rounded-3xl p-6 shadow-sm hover:shadow-md transition bg-white">
@@ -194,15 +178,14 @@ function Services() {
           </div>
         ))}
       </div>
-  
+
     </section>
   );
 }
 
 function GallerySlider() {
-  const GALLERY = useClientGallery();
   const [idx, setIdx] = useState(0);
-  const total = GALLERY.length;
+  const total = LOCAL_GALLERY.length;
   const prev = () => setIdx(v => (v - 1 + total) % total);
   const next = () => setIdx(v => (v + 1) % total);
 
@@ -213,17 +196,17 @@ function GallerySlider() {
 
   return (
     <section id="galeria" className="py-16 bg-gray-50">
-      <SectionTitle kicker="Portfólio" title="Antes & Depois, projetos e peças" subtitle="Alguns trabalhos recentes." />
+      <SectionTitle kicker="Nosso Portfólio" title="Antes & Depois e Projetos Finalizados" subtitle="Veja a transformação que podemos fazer no seu estofado." />
       <div className="max-w-6xl mx-auto px-4">
         <div className="relative">
           <div className="aspect-[16/9] rounded-3xl overflow-hidden ring-1 ring-black/5 shadow">
-            <img src={GALLERY[idx]?.url} alt={GALLERY[idx]?.alt} className="w-full h-full object-cover" loading="lazy" />
+            <img src={LOCAL_GALLERY[idx]?.url} alt={LOCAL_GALLERY[idx]?.alt} className="w-full h-full object-cover" loading="lazy" />
           </div>
           <button onClick={prev} className="absolute top-1/2 -translate-y-1/2 left-3 md:left-5 p-2 bg-white/90 rounded-full shadow border" aria-label="Anterior">‹</button>
           <button onClick={next} className="absolute top-1/2 -translate-y-1/2 right-3 md:right-5 p-2 bg-white/90 rounded-full shadow border" aria-label="Próximo">›</button>
         </div>
         <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-          {GALLERY.map((g, i) => (
+          {LOCAL_GALLERY.map((g, i) => (
             <button
               key={g.url} onClick={() => setIdx(i)}
               className={classNames("shrink-0 w-28 h-20 rounded-xl overflow-hidden border", i === idx ? "ring-2 ring-black" : "opacity-80 hover:opacity-100")}
@@ -234,7 +217,7 @@ function GallerySlider() {
           ))}
         </div>
         <div className="mt-6 text-center">
-          <a href={SOCIAL.googlePhotosAlbum} target="_blank" rel="noreferrer" className="inline-block px-5 py-3 rounded-2xl border font-semibold">Ver álbum completo</a>
+          <a href={SOCIAL.fullGalleryLink} target="_blank" rel="noreferrer" className="inline-block px-5 py-3 rounded-2xl border font-semibold">Veja mais trabalhos no Instagram</a>
         </div>
       </div>
     </section>
@@ -249,14 +232,12 @@ function About() {
           <SectionTitle kicker="Quem somos" title={COMPANY.name} subtitle="Tradição, acabamento e materiais de qualidade." />
           <div className="max-w-none">
             <p>
-              Somos especialistas em tapeçaria e estofaria, com foco em reforma de sofás,
-              poltronas e cadeiras. Atendemos residências e empresas, com prazos combinados
-              e acabamento cuidadoso.
+              Com mais de 20 anos de tradição, a Tapeçaria José Antonio une a experiência artesanal com materiais de alta qualidade para renovar seus estofados. Somos especialistas em reforma de sofás, poltronas e cadeiras, atendendo residências e empresas com prazos combinados e acabamento cuidadoso.
             </p>
             <ul className="list-disc pl-6 mt-3 text-gray-700">
-              <li>Orçamento por foto: envie imagens pelo WhatsApp para agilizar.</li>
-              <li>Opções de tecidos, couros e espumas para cada necessidade.</li>
-              <li>Retirada e entrega (consulte disponibilidade na sua região).</li>
+              <li>Orçamento por foto: envie imagens pelo WhatsApp para uma avaliação rápida e precisa.</li>
+              <li>Ampla variedade de tecidos, couros e espumas para cada necessidade e estilo.</li>
+              <li>Serviço de retirada e entrega para sua total comodidade (consulte disponibilidade).</li>
             </ul>
           </div>
           <div className="mt-6 grid sm:grid-cols-2 gap-4">
@@ -297,7 +278,7 @@ function Contact() {
   const FORMSPREE_ID = "meqwyzkn"; // Troque!
   return (
     <section id="contato" className="py-16 bg-gray-50">
-      <SectionTitle kicker="Fale conosco" title="Orçamento rápido" subtitle="Envie fotos do seu estofado para uma estimativa mais precisa." />
+      <SectionTitle kicker="Fale conosco" title="Peça seu Orçamento Grátis" subtitle="Envie fotos do seu estofado para uma estimativa mais precisa e rápida." />
       <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-2 gap-8 items-start">
         <form action={`https://formspree.io/f/${FORMSPREE_ID}`} method="POST" className="bg-white p-6 rounded-3xl border shadow-sm grid gap-4">
           <div className="grid sm:grid-cols-2 gap-4">
@@ -316,15 +297,15 @@ function Contact() {
           </div>
           <div>
             <label className="block text-sm font-medium">Mensagem</label>
-            <textarea name="message" rows={5} className="mt-1 w-full border rounded-xl px-3 py-2" placeholder="Fale um pouco sobre a peça (medidas, tecido desejado, etc.)" />
+            <textarea name="message" rows={5} className="mt-1 w-full border rounded-xl px-3 py-2" placeholder="Fale um pouco sobre a peça que deseja reformar (medidas, tipo de tecido, etc.)." />
           </div>
-          <button className="mt-2 px-5 py-3 rounded-2xl bg-black text-white font-semibold">Enviar</button>
-          <p className="text-xs text-gray-500">Ao enviar você concorda com nosso contato para orçamento.</p>
+          <button className="mt-2 px-5 py-3 rounded-2xl bg-black text-white font-semibold">Enviar Mensagem</button>
+          <p className="text-xs text-gray-500">Seus dados estão seguros. Usaremos apenas para o orçamento.</p>
         </form>
         <div className="grid gap-4">
           <div className="p-6 rounded-3xl border bg-white">
-            <h3 className="font-bold text-lg">WhatsApp</h3>
-            <p className="text-gray-600 mt-1">Atendimento rápido por mensagem. Envie fotos e medidas.</p>
+            <h3 className="font-bold text-lg">WhatsApp é Mais Rápido!</h3>
+            <p className="text-gray-600 mt-1">Clique no botão, envie as fotos do seu móvel e receba uma prévia do orçamento em poucos minutos.</p>
             <a
               href={`https://wa.me/${COMPANY.phoneE164}?text=${encodeURIComponent("Olá! Gostaria de um orçamento para reforma.")}`}
               target="_blank" rel="noreferrer"
@@ -332,7 +313,8 @@ function Contact() {
             >Falar no WhatsApp</a>
           </div>
           <div className="p-6 rounded-3xl border bg-white">
-            <h3 className="font-bold text-lg">Redes sociais</h3>
+            <h3 className="font-bold text-lg">Siga nosso Trabalho</h3>
+            <p className="text-gray-600 mt-1">Acompanhe nossos últimos projetos e inspire-se nas nossas redes sociais.</p>
             <div className="flex gap-4 mt-2">
               <a className="underline" href={SOCIAL.instagram} target="_blank" rel="noreferrer">Instagram</a>
               <a className="underline" href={SOCIAL.facebook} target="_blank" rel="noreferrer">Facebook</a>
@@ -369,24 +351,22 @@ function WhatsAppFloat() {
       className="fixed bottom-5 right-5 p-4 rounded-full bg-green-600 text-white shadow-2xl ring-1 ring-black/5 hover:scale-105 transition"
       aria-label="WhatsApp"
     >
-      {/* Ícone leve para evitar SVG gigante */}
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-6 h-6" aria-hidden="true">
-        <circle cx="12" cy="12" r="10" fill="currentColor" />
-        <text x="12" y="16" textAnchor="middle" fontSize="12" fill="#fff" fontFamily="Arial, sans-serif">W</text>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8">
+        <path d="M19.05 4.94A10.003 10.003 0 0012 2C6.477 2 2 6.477 2 12c0 1.723.44 3.352 1.228 4.795L2 22l5.205-1.228A9.953 9.953 0 0012 22c5.523 0 10-4.477 10-10a9.953 9.953 0 00-2.95-7.06zM12 20.25c-1.54 0-2.992-.41-4.242-1.132L12 18.25v-2.5l-2.5-1.5V12l-2-1.25v-1.5L12 8.5v-2.5l2.5 1.5V10l2 1.25v1.5L12 13.5v2.5l4.242.868A8.204 8.204 0 0112 20.25z"/>
       </svg>
     </a>
   );
 }
 
 function SeoJsonLd() {
-  const gallery = useClientGallery();
   const json = useMemo(() => ({
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     name: COMPANY.name,
+    description: "Especialistas em reforma de sofás, poltronas, cadeiras e estofados em geral. Atendimento residencial e comercial em São Paulo.",
     url: COMPANY.site,
     telephone: "+" + COMPANY.phoneE164,
-    image: gallery[0]?.url,
+    image: LOCAL_GALLERY[0]?.url,
     address: {
       "@type": "PostalAddress",
       streetAddress: ADDRESS.line1,
@@ -402,7 +382,7 @@ function SeoJsonLd() {
       closes: h.h.includes("Fechado") ? undefined : h.h.split(" – ")[1],
     })),
     sameAs: [SOCIAL.instagram, SOCIAL.facebook],
-  }), [gallery]);
+  }), []);
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(json) }} />;
 }
 
